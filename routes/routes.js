@@ -13,12 +13,11 @@ const validateToken = (req, res, next) => {
   const token = req.headers.authorization;
 
   if (token == null) res.status(400).json({ message: "Token not present" });
-
   jwt.verify(token, process.env.SECRET_KEY, (err, user) => {
     if (err) {
       res.status(403).send("Token invalid");
     } else {
-      req.user = user;
+      req.params.user = user;
       next(); //proceed to the next action in the calling function
     }
   });
@@ -58,7 +57,7 @@ router.post("/login", async (req, res, next) => {
 
 router.post("/signup", async (req, res, next) => {
   const { firstName, lastName, email, password } = req.body;
-  const newUser = new User({ firstName, lastName, email, password });
+  const newUser = new User({ firstName, lastName, email, password, tasks: [] });
 
   try {
     await newUser.save();
@@ -86,8 +85,9 @@ router.post("/signup", async (req, res, next) => {
 });
 
 router.get("/tasks", validateToken, async (req, res) => {
+  const { user } = req.params;
   try {
-    const data = await Tasks.find();
+    const data = await User.findById({ _id: user?.userId });
     res.status(200).json(data);
   } catch (e) {
     res.status(404).json({ error: e.message });
@@ -96,15 +96,19 @@ router.get("/tasks", validateToken, async (req, res) => {
 
 router.post("/tasks", validateToken, async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { user } = req.params;
+    const { userId } = user;
     const data = new Tasks({
-      userId,
       title: req.body.title,
       description: req.body.description,
       status: req.body.status,
     });
-    const savedData = await data.save();
-    const updatedData = await Tasks.find();
+
+    const savedData = await User.findByIdAndUpdate(
+      { _id: userId },
+      { $addToSet: { tasks: data } }
+    );
+    const updatedData = await User.findById({ _id: userId });
     res.status(201).json(updatedData);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -113,13 +117,19 @@ router.post("/tasks", validateToken, async (req, res) => {
 
 router.delete("/tasks/:id", validateToken, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id, user } = req.params;
+    const { userId } = user;
 
     if (!mongoose.Types.ObjectId.isValid(id))
       res.status(404).json({ msg: `No task with id :${id}` });
 
-    const deletedData = await Tasks.findByIdAndRemove({ _id: id });
-    const updatedData = await Tasks.find();
+    const deletedData = await User.findOneAndUpdate(
+      { _id: userId },
+      { $pull: { tasks: { _id: id } } }
+    );
+
+    const updatedData = await User.findById({ _id: userId });
+
     res.status(200).json(updatedData);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -128,17 +138,25 @@ router.delete("/tasks/:id", validateToken, async (req, res) => {
 
 router.put("/tasks/:id", validateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const update = await Tasks.findByIdAndUpdate(
-      id,
-      {
-        title: req.body.title,
-        description: req.body.description,
-        status: req.body.status,
-      },
-      { new: true }
+    const { id, user } = req.params;
+    const { userId } = user;
+    const dataToUpdate = {
+      title: req.body.title,
+      description: req.body.description,
+      status: req.body.status,
+    };
+
+    const userAccount = await User.findById({ _id: userId });
+
+    const taskToUpdate = userAccount?.tasks?.find(
+      (task) => task?._id?.toString() === id
     );
-    const data = await Tasks.find();
+    taskToUpdate.set(dataToUpdate);
+
+    const updatedData = await userAccount?.save();
+
+    const data = await User.findById({ _id: userId });
+
     res.status(200).json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
