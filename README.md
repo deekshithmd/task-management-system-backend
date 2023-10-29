@@ -19,6 +19,6 @@ NodeJS, ExpressJS, Mongoose, MongoDB, Jest, SuperTest
 4. Add task to user's task list
 5. Delete task from user's task list
 6. Get all tasks of logged in user
-7. Updated particular task of the user. 
+7. Update particular task of the user. 
    
 
