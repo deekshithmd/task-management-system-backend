@@ -1,5 +1,7 @@
+// module import
 const mongoose = require("mongoose");
 
+// schema for task
 const taskSchema = new mongoose.Schema({
   title: {
     required: true,

@@ -1,21 +1,8 @@
+// module imports
 const mongoose = require("mongoose");
 const Task = require("./taskModel").schema;
 
-const taskSchema = new mongoose.Schema({
-  title: {
-    required: true,
-    type: String,
-  },
-  description: {
-    required: true,
-    type: String,
-  },
-  status: {
-    required: true,
-    type: String,
-  },
-});
-
+// schema for user
 const userSchema = new mongoose.Schema({
   firstName: {
     required: true,
